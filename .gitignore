@@ -3,6 +3,18 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# pdf
+*.pdf
+
+# data
+data/
+
+# CNPJ
+cnpjs_receita_federal
+
+#jupyter
+*.ipynb
+
 # C extensions
 *.so
 

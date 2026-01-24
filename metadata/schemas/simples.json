@@ -1,0 +1,15 @@
+{
+    "simples": {
+            "columns": ["cnpj_basico", 
+                "opcao_pelo_simples",
+                "data_de_opcao_pelo_simples",
+                "data_de_exclusao_do_simples",
+                "opcao_pelo_mei",
+                "data_de_opcao_pelo_mei",
+                "data_de_exclusao_do_mei"
+            ],
+            "separator": ";",
+            "encoding": "latin-1",
+            "has_header": false
+    }
+}

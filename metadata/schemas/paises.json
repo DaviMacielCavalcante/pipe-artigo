@@ -1,0 +1,9 @@
+{
+    "paises": {
+            "columns": ["codigo", 
+                "descricao"],
+            "separator": ";",
+            "encoding": "latin-1",
+            "has_header": false
+    }
+}

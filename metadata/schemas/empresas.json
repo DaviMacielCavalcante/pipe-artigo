@@ -1,0 +1,14 @@
+{
+    "empresas": {
+            "columns": ["cnpj_basico", 
+                "razao_social_ou_nome_empresarial",
+                "natureza_juridica",
+                "qualificacao_do_responsavel",
+                "capital_social_da_empresa",
+                "porte_da_empresa",
+                "ente_federativo_responsavel"],
+            "separator": ";",
+            "encoding": "latin-1",
+            "has_header": false
+    }
+}

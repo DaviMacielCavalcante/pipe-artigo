@@ -1,0 +1,19 @@
+{
+    "simples": {
+            "columns": ["cnpj_basico", 
+                "identificador_de_socio",
+                "nome_do_socio_ou_razao_social",
+                "cnpj_ou_cpf_do_socio",
+                "qualificacao_do_socio",
+                "data_de_entrada_sociedade",
+                "pais",
+                "representante_legal",
+                "nome_do_representante",
+                "qualificacao_do_representante_legal",
+                "faixa_etaria"
+            ],
+            "separator": ";",
+            "encoding": "latin-1",
+            "has_header": false
+    }
+}

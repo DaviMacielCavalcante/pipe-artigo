@@ -1,5 +1,5 @@
 {
-    "simples": {
+    "socios": {
             "columns": ["cnpj_basico", 
                 "identificador_de_socio",
                 "nome_do_socio_ou_razao_social",

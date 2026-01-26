@@ -1,0 +1,112 @@
+services:
+  spark-master:
+    image: apache/spark-py:latest
+    container_name: spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./cnpjs_receita_federal:/opt/spark/work-dir/cnpjs_receita_federal:ro
+      - ./metadata:/opt/spark/work-dir/metadata:ro
+      - ./data:/opt/spark/work-dir/data
+      - ./reports:/opt/spark/work-dir/reports
+      - spark-master-work:/opt/spark/work
+    networks:
+      - pipeline-network
+
+  spark-worker-1:
+    image: apache/spark-py:latest
+    container_name: spark-worker-1
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+      - SPARK_WORKER_CORES=4
+      - SPARK_WORKER_MEMORY=4G
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./cnpjs_receita_federal:/opt/spark/work-dir/cnpjs_receita_federal:ro
+      - ./metadata:/opt/spark/work-dir/metadata:ro
+      - ./data:/opt/spark/work-dir/data
+      - ./reports:/opt/spark/work-dir/reports
+      - spark-worker-1-work:/opt/spark/work
+    networks:
+      - pipeline-network
+
+  spark-worker-2:
+    image: apache/spark-py:latest
+    container_name: spark-worker-2
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+      - SPARK_WORKER_CORES=4
+      - SPARK_WORKER_MEMORY=4G
+    depends_on:
+      - spark-master
+    ports:
+      - "8082:8081"
+    volumes:
+      - ./cnpjs_receita_federal:/opt/spark/work-dir/cnpjs_receita_federal:ro
+      - ./metadata:/opt/spark/work-dir/metadata:ro
+      - ./data:/opt/spark/work-dir/data
+      - ./reports:/opt/spark/work-dir/reports
+      - spark-worker-2-work:/opt/spark/work
+    networks:
+      - pipeline-network
+
+  cassandra:
+    image: cassandra:latest
+    container_name: cassandra
+    environment:
+      - CASSANDRA_CLUSTER_NAME=cnpj-cluster
+      - CASSANDRA_DC=datacenter1
+      - CASSANDRA_RACK=rack1
+      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+      - CASSANDRA_NUM_TOKENS=128
+    ports:
+      - "9042:9042"
+      - "7199:7199"
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    networks:
+      - pipeline-network
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  mongodb:
+    image: mongodb/mongodb-community-server:7.0-ubuntu2204
+    container_name: mongodb
+    environment:
+      - MONGO_INITDB_DATABASE=cnpj_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - pipeline-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  pipeline-network:
+    driver: bridge
+
+volumes:
+  cassandra-data:
+  mongodb-data:
+  spark-master-work:
+  spark-worker-1-work:
+  spark-worker-2-work:

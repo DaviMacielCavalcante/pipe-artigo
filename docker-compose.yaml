@@ -13,7 +13,8 @@ services:
       - ./metadata:/opt/spark/work-dir/metadata:ro
       - ./data:/opt/spark/work-dir/data
       - ./reports:/opt/spark/work-dir/reports
-      - spark-master-work:/opt/spark/work
+      - ./scripts:/opt/spark/work-dir/scripts
+      - ./logs:/opt/spark/work-dir/logs
     networks:
       - pipeline-network
 
@@ -34,7 +35,8 @@ services:
       - ./metadata:/opt/spark/work-dir/metadata:ro
       - ./data:/opt/spark/work-dir/data
       - ./reports:/opt/spark/work-dir/reports
-      - spark-worker-1-work:/opt/spark/work
+      - ./scripts:/opt/spark/work-dir/scripts
+      - ./logs:/opt/spark/work-dir/logs
     networks:
       - pipeline-network
 
@@ -55,7 +57,8 @@ services:
       - ./metadata:/opt/spark/work-dir/metadata:ro
       - ./data:/opt/spark/work-dir/data
       - ./reports:/opt/spark/work-dir/reports
-      - spark-worker-2-work:/opt/spark/work
+      - ./scripts:/opt/spark/work-dir/scripts
+      - ./logs:/opt/spark/work-dir/logs
     networks:
       - pipeline-network
 
@@ -107,6 +110,3 @@ networks:
 volumes:
   cassandra-data:
   mongodb-data:
-  spark-master-work:
-  spark-worker-1-work:
-  spark-worker-2-work:

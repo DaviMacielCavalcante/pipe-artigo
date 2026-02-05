@@ -13,6 +13,10 @@ reports/
 # data
 data/
 
+# logs
+
+logs/
+
 # CNPJ
 cnpjs_receita_federal
 

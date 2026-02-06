@@ -86,7 +86,7 @@ def get_schema_for_category(category_name: str) -> dict:
     }
     
 
-def read_CSVs(category_name: str):
+def read_CSVs(category_name: str, spark: SparkSession):
     """
     Read CSV files for a Receita Federal data category into a Spark DataFrame.
 
@@ -134,49 +134,50 @@ def read_CSVs(category_name: str):
         "dataframe": df            
     }    
 
-def generate_reports(category_name: str) -> dict:
+def generate_reports(category_name: str, spark: SparkSession) -> dict:
     """
     Generate statistics report for a Receita Federal data category using PySpark.
-    
+
     Processes the latest snapshot (most recent data) for the given category.
 
     Parameters
     ----------
     category_name : str
-        Category name (e.g., "cnaes", "empresas", "municipios").
+        Category name (e.g., 'cnaes', 'empresas', 'municipios').
         Must match a {category_name}.json file in metadata/schemas/
+    spark : SparkSession
+        Active PySpark session passed to read_CSVs.
 
     Returns
     -------
     dict
         Dictionary containing statistics with:
-        - category: category name
-        - timestamp: generation timestamp (ISO format)
-        - total: aggregated statistics (rows, files, size_mb, unique_codes)
-        
+        - category : str
+            Category name.
+        - timestamp : str
+            Generation timestamp (ISO format).
+        - total : dict
+            Aggregated statistics (rows, files, size_mb, unique_codes).
+        - performance : dict
+            Execution time in seconds.
+
     Notes
     -----
-    - Requires active SparkSession in global scope
-    - Reads CSV files from cnpjs_receita_federal/2025-12/{Category}/*.csv
-    - All columns are read as StringType to avoid type inference issues
+    - Reads CSV files via read_CSVs.
+    - All columns are read as StringType to avoid type inference issues.
     - Saves JSON report to reports/{category_name}_report.json
-    
+
     Examples
     --------
-    >>> # Create SparkSession first
     >>> spark = SparkSession.builder.appName("CNPJ").master("local[*]").getOrCreate()
-    >>> 
-    >>> # Generate report
-    >>> result = generate_reports("cnaes")
+    >>> result = generate_reports("cnaes", spark)
     >>> print(result['total']['rows'])
     1359
-    >>> 
-    >>> # Stop Spark when done
     >>> spark.stop()
     """
     start = time.time()
     
-    category_pack = read_CSVs(category_name)
+    category_pack = read_CSVs(category_name, spark)
     
     code_col = category_pack["schema_and_columns"]["columns"][0]
     
@@ -216,22 +217,29 @@ def generate_reports(category_name: str) -> dict:
         
     return results
 
-def generate_bronze(category_name: str) -> bool:
+def generate_bronze(category_name: str, spark: SparkSession) -> bool:
     """
     Convert CSV files to Parquet format (Bronze layer).
-    
+
     Parameters
     ----------
     category_name : str
-        Category to process
-        
+        Category to process.
+    spark : SparkSession
+        Active PySpark session passed to read_CSVs.
+
     Returns
     -------
     bool
-        True if successful, False if no files found
+        True if successful.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no CSV files are found for the given category (raised by read_CSVs).
     """
     
-    category_pack = read_CSVs(category_name)
+    category_pack = read_CSVs(category_name, spark)
     
     df = category_pack["dataframe"]
     
@@ -240,31 +248,32 @@ def generate_bronze(category_name: str) -> bool:
     
     return True
 
-spark = SparkSession.builder \
-    .appName("Teste") \
-    .master("spark://spark-master:7077") \
-    .getOrCreate()
-    
-generate_reports("cnaes")
-generate_reports("municipios")
-generate_reports("paises")
-generate_reports("naturezas")
-generate_reports("motivos")
-generate_reports("qualificacoes")
-generate_reports("simples")
-generate_reports("empresas")
-generate_reports("estabelecimentos")
-generate_reports("socios")
+if __name__ == "__main__":
+    spark = SparkSession.builder \
+        .appName("Teste") \
+        .master("spark://spark-master:7077") \
+        .getOrCreate()
+        
+    generate_reports("cnaes", spark)
+    generate_reports("municipios", spark)
+    generate_reports("paises", spark)
+    generate_reports("naturezas", spark)
+    generate_reports("motivos", spark)
+    generate_reports("qualificacoes", spark)
+    generate_reports("simples", spark)
+    generate_reports("empresas", spark)
+    generate_reports("estabelecimentos", spark)
+    generate_reports("socios", spark)
 
-generate_bronze("cnaes")
-generate_bronze("municipios")
-generate_bronze("paises")
-generate_bronze("naturezas")
-generate_bronze("motivos")
-generate_bronze("qualificacoes")
-generate_bronze("simples")
-generate_bronze("empresas")
-generate_bronze("estabelecimentos")
-generate_bronze("socios")
+    generate_bronze("cnaes", spark)
+    generate_bronze("municipios", spark)
+    generate_bronze("paises", spark)
+    generate_bronze("naturezas", spark)
+    generate_bronze("motivos", spark)
+    generate_bronze("qualificacoes", spark)
+    generate_bronze("simples", spark)
+    generate_bronze("empresas", spark)
+    generate_bronze("estabelecimentos", spark)
+    generate_bronze("socios", spark)
 
-spark.stop()
+    spark.stop()

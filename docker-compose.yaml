@@ -26,6 +26,7 @@ services:
       - SPARK_NO_DAEMONIZE=true
       - SPARK_WORKER_CORES=4
       - SPARK_WORKER_MEMORY=4G
+      - SPARK_WORKER_DIR=/tmp/spark-work
     depends_on:
       - spark-master
     ports:
@@ -37,6 +38,7 @@ services:
       - ./reports:/opt/spark/work-dir/reports
       - ./scripts:/opt/spark/work-dir/scripts
       - ./logs:/opt/spark/work-dir/logs
+      - spark-worker-1-work:/opt/spark/work
     networks:
       - pipeline-network
 
@@ -48,6 +50,7 @@ services:
       - SPARK_NO_DAEMONIZE=true
       - SPARK_WORKER_CORES=4
       - SPARK_WORKER_MEMORY=4G
+      - SPARK_WORKER_DIR=/tmp/spark-work
     depends_on:
       - spark-master
     ports:
@@ -59,6 +62,7 @@ services:
       - ./reports:/opt/spark/work-dir/reports
       - ./scripts:/opt/spark/work-dir/scripts
       - ./logs:/opt/spark/work-dir/logs
+      - spark-worker-2-work:/opt/spark/work
     networks:
       - pipeline-network
 
@@ -110,3 +114,5 @@ networks:
 volumes:
   cassandra-data:
   mongodb-data:
+  spark-worker-1-work:
+  spark-worker-2-work:

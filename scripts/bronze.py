@@ -188,7 +188,7 @@ def generate_bronze(category_name: str) -> bool:
 
 spark = SparkSession.builder \
     .appName("Teste") \
-    .master("spark://spark-master:7077[4]") \
+    .master("spark://spark-master:7077") \
     .getOrCreate()
     
 generate_reports("cnaes")

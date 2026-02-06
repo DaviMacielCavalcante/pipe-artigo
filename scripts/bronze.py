@@ -44,6 +44,96 @@ def load_schema(file: str) -> dict | None:
         return None
     return schema
 
+
+def get_schema_for_category(category_name: str) -> dict:
+    """
+    Build a PySpark StructType schema from a JSON schema file.
+
+    Parameters
+    ----------
+    category_name : str
+        Category name (e.g., 'cnaes', 'empresas').
+        Must match a {category_name}.json file in metadata/schemas/
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - schema : StructType
+            PySpark schema with all columns as StringType.
+        - columns : list of str
+            List of column names from the JSON schema.
+
+    Examples
+    --------
+    >>> result = get_schema_for_category("cnaes")
+    >>> result["columns"]
+    ['codigo', 'descricao']
+    """
+
+    
+    schema_json = load_schema(f"{category_name}.json")
+    
+    columns = schema_json[category_name]["columns"]
+    schema = StructType([
+            StructField(column, StringType(), True)
+            for column in columns
+        ])
+    
+    return {
+        "schema": schema,
+        "columns": columns
+    }
+    
+
+def read_CSVs(category_name: str):
+    """
+    Read CSV files for a Receita Federal data category into a Spark DataFrame.
+
+    Locates CSV files in cnpjs_receita_federal/2025-12/{Category}*/,
+    loads the corresponding JSON schema, and reads the files using PySpark.
+
+    Parameters
+    ----------
+    category_name : str
+        Category name (e.g., 'cnaes', 'empresas').
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - csv_files : list of Path
+            List of CSV file paths found.
+        - schema_and_columns : dict
+            Output of get_schema_for_category (schema and column names).
+        - dataframe : pyspark.sql.DataFrame
+            Spark DataFrame with the loaded data.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no CSV files are found for the given category.
+    """
+    csv_files = list(Path("cnpjs_receita_federal/").glob(f"2025-12/{category_name.capitalize()}*/*.csv"))
+    
+    if not csv_files:
+        raise FileNotFoundError(f"Nenhum arquivo encontrado para {category_name}")
+    
+    schema_and_columns = get_schema_for_category(category_name)
+    
+    df = spark.read \
+    .option("header", "false") \
+    .option("delimiter", ";") \
+    .option("encoding", "ISO-8859-1") \
+    .schema(schema_and_columns["schema"]) \
+    .csv([str(file) for file in csv_files])
+    
+    return {
+        "csv_files": csv_files, 
+        "schema_and_columns": schema_and_columns, 
+        "dataframe": df            
+    }    
+
 def generate_reports(category_name: str) -> dict:
     """
     Generate statistics report for a Receita Federal data category using PySpark.
@@ -86,16 +176,11 @@ def generate_reports(category_name: str) -> dict:
     """
     start = time.time()
     
-    schema_json = load_schema(f"{category_name}.json")
+    category_pack = read_CSVs(category_name)
     
-    code_col = schema_json[category_name]["columns"][0]
+    code_col = category_pack["schema_and_columns"]["columns"][0]
     
-    columns = schema_json[category_name]["columns"]
-    schema = StructType([
-            StructField(column, StringType(), True)
-            for column in columns
-        ])
-
+    
     results = {
         "category": category_name,
         "timestamp": datetime.now().isoformat(),
@@ -107,28 +192,15 @@ def generate_reports(category_name: str) -> dict:
         },
         "performance": {}
     }
-        
-    month_str = "2025-12"
     
-    csv_files = list(Path("cnpjs_receita_federal/").glob(f"{month_str}/{category_name.capitalize()}*/*.csv"))
-    
-    if not csv_files:
-        print(f"Nenhum arquivo encontrado para {category_name}")
-        return results
-    
-    df = spark.read \
-    .option("header", "false") \
-    .option("delimiter", ";") \
-    .option("encoding", "ISO-8859-1") \
-    .schema(schema) \
-    .csv([str(file) for file in csv_files])
+    df = category_pack["dataframe"]
     
     rows = df.count()
-    size = sum(file.stat().st_size / (1024**2) for file in csv_files)
+    size = sum(file.stat().st_size / (1024**2) for file in category_pack["csv_files"])
     unique_codes = df.select(code_col).distinct().count()
             
     results["total"]["rows"] = rows
-    results["total"]["files"] = len(csv_files)
+    results["total"]["files"] = len(category_pack["csv_files"])
     results["total"]["size_mb"] = round(size, 2)
     results["total"]["unique_codes"] = unique_codes
     
@@ -159,27 +231,9 @@ def generate_bronze(category_name: str) -> bool:
         True if successful, False if no files found
     """
     
-    csv_files = list(Path("cnpjs_receita_federal/").glob(f"2025-12/{category_name.capitalize()}*/*.csv"))
+    category_pack = read_CSVs(category_name)
     
-    
-    if not csv_files:
-        print(f"Nenhum arquivo encontrado para {category_name}")
-        return False
-    
-    schema_json = load_schema(f"{category_name}.json")
-    
-    columns = schema_json[category_name]["columns"]
-    schema = StructType([
-            StructField(column, StringType(), True)
-            for column in columns
-        ])
-    
-    df = spark.read \
-    .option("header", "false") \
-    .option("delimiter", ";") \
-    .option("encoding", "ISO-8859-1") \
-    .schema(schema) \
-    .csv([str(file) for file in csv_files])
+    df = category_pack["dataframe"]
     
     Path(f"data/{category_name}").mkdir(exist_ok=True, parents=True)
     df.write.mode("overwrite").option("compression", "snappy").parquet(f"data/{category_name}/2025-12.parquet")

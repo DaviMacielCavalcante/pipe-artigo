@@ -1,6 +1,6 @@
 CREATE TABLE silver.empresas (
     cnpj_basico TEXT,
-    razao_social TEXT,
+    razao_social_ou_nome_empresarial TEXT,
     natureza_juridica INT,
     qualificacao_do_responsavel INT,
     capital_social_da_empresa DECIMAL,

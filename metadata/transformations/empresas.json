@@ -1,0 +1,6 @@
+{
+    "natureza_juridica": "int",
+    "qualificacao_do_responsavel": "int",
+    "capital_social_da_empresa": "decimal",
+    "porte_da_empresa": "int"
+}

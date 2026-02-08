@@ -1,0 +1,6 @@
+{
+    "data_de_opcao_pelo_simples": "date", 
+    "data_de_exclusao_do_simples": "date", 
+    "data_de_opcao_pelo_mei": "date",
+    "data_de_exclusao_do_mei": "date"
+}

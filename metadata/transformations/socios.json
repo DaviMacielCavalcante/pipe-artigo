@@ -1,0 +1,8 @@
+{
+    "identificador_de_socio": "int",
+    "qualificacao_do_socio": "int", 
+    "data_de_entrada_sociedade": "date",
+    "pais": "int",
+    "qualificacao_do_representante_legal": "int",
+    "faixa_etaria": "int"
+}

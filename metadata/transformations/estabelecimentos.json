@@ -1,0 +1,10 @@
+{
+    "situacao_cadastral": "int",
+    "data_situacao_cadastral": "date",
+    "motivo_situacao_cadastral": "int",
+    "pais": "int",
+    "data_de_inicio_atividade": "date",
+    "cnae_fiscal_principal": "int",
+    "municipio": "int",
+    "data_da_situacao_especial": "date"
+}

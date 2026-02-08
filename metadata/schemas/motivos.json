@@ -1,6 +1,6 @@
 {
     "motivos": {
-            "columns": ["id", 
+            "columns": ["codigo", 
                 "descricao"],
             "separator": ";",
             "encoding": "latin-1",

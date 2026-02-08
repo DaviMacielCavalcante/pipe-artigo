@@ -80,6 +80,7 @@ services:
       - "7199:7199"
     volumes:
       - cassandra-data:/var/lib/cassandra
+      - ./database/cassandra:/opt/scripts:ro
     networks:
       - pipeline-network
     healthcheck:

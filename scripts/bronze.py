@@ -125,6 +125,7 @@ def read_CSVs(category_name: str, spark: SparkSession):
     .option("header", "false") \
     .option("delimiter", ";") \
     .option("encoding", "ISO-8859-1") \
+    .option("quote", '"') \
     .schema(schema_and_columns["schema"]) \
     .csv([str(file) for file in csv_files])
     
@@ -243,8 +244,8 @@ def generate_bronze(category_name: str, spark: SparkSession) -> bool:
     
     df = category_pack["dataframe"]
     
-    Path(f"data/{category_name}").mkdir(exist_ok=True, parents=True)
-    df.write.mode("overwrite").option("compression", "snappy").parquet(f"data/{category_name}/2025-12.parquet")
+    Path(f"data/bronze/{category_name}").mkdir(exist_ok=True, parents=True)
+    df.write.mode("overwrite").option("compression", "snappy").parquet(f"data/bronze/{category_name}")
     
     return True
 
@@ -254,26 +255,21 @@ if __name__ == "__main__":
         .master("spark://spark-master:7077") \
         .getOrCreate()
         
-    generate_reports("cnaes", spark)
-    generate_reports("municipios", spark)
-    generate_reports("paises", spark)
-    generate_reports("naturezas", spark)
-    generate_reports("motivos", spark)
-    generate_reports("qualificacoes", spark)
-    generate_reports("simples", spark)
-    generate_reports("empresas", spark)
-    generate_reports("estabelecimentos", spark)
-    generate_reports("socios", spark)
-
-    generate_bronze("cnaes", spark)
-    generate_bronze("municipios", spark)
-    generate_bronze("paises", spark)
-    generate_bronze("naturezas", spark)
-    generate_bronze("motivos", spark)
-    generate_bronze("qualificacoes", spark)
-    generate_bronze("simples", spark)
-    generate_bronze("empresas", spark)
-    generate_bronze("estabelecimentos", spark)
-    generate_bronze("socios", spark)
+    categories = [
+        "cnaes", 
+        "municipios", 
+        "paises", 
+        "naturezas", 
+        "motivos", 
+        "qualificacoes", 
+        "simples", 
+        "empresas", 
+        "estabelecimentos", 
+        "socios"
+    ]
+    
+    for category in categories:
+        generate_reports(category, spark)
+        generate_bronze(category, spark)
 
     spark.stop()

@@ -21,7 +21,7 @@ def adjust_data_type(category_name: str, spark: SparkSession):
     
     schema = load_transformation_schema(category_name)
     
-    df = spark.read.parquet(f"data/{category_name}/2025-12.parquet")
+    df = spark.read.parquet(f"data/bronze/{category_name}")
 
     for k, v in schema.items():
         if v != "date":
@@ -45,14 +45,12 @@ def standardizing_strings(df: DataFrame):
                 
     return df
 
-def persisting_on_cassandra(df: DataFrame, category: str):
+def persisting_locally(df: DataFrame, category: str):
     
     df.write \
-        .format("org.apache.spark.sql.cassandra") \
-        .option("keyspace", "silver") \
-        .option("table", category) \
-        .mode("append") \
-        .save()
+        .mode("overwrite") \
+        .option("compression", "snappy") \
+        .parquet(f"data/silver/{category}")
         
     
 
@@ -60,7 +58,6 @@ if __name__ == "__main__":
     spark = SparkSession.builder \
         .appName("Teste") \
         .master("spark://spark-master:7077") \
-        .config("spark.cassandra.connection.host", "cassandra") \
         .getOrCreate()
         
     categories = ["cnaes", "empresas", "estabelecimentos", "motivos", "municipios", "naturezas", "paises", "qualificacoes", "simples", "socios"]
@@ -68,6 +65,6 @@ if __name__ == "__main__":
     for category in categories:
         df = adjust_data_type(category, spark) 
         standardized_df = standardizing_strings(df)
-        persisting_on_cassandra(standardized_df, category)
+        persisting_locally(standardized_df, category)
 
     spark.stop()

@@ -14,6 +14,7 @@
                 "cnae_fiscal_principal",
                 "cnae_fiscal_secundaria",
                 "tipo_de_logradouro",
+                "logradouro",
                 "numero",
                 "complemento",
                 "bairro",

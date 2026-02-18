@@ -212,8 +212,8 @@ def generate_reports(category_name: str, spark: SparkSession) -> dict:
     
     results["performance"]["execution_time_seconds"] = round(total_time, 2)
 
-    Path("reports").mkdir(exist_ok=True)
-    with open(f"reports/{category_name}_report.json", "w") as f:
+    Path("reports/bronze").mkdir(exist_ok=True)
+    with open(f"reports/bronze/{category_name}_report.json", "w") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
         
     return results

@@ -7,6 +7,22 @@
         "opcao_pelo_mei":{
             "valid_values": ["s", "n"],
             "allow_null": true
+        },
+        "data_de_opcao_pelo_simples":{
+            "valid_values": "1998-07-01",
+            "allow_null": true
+        },
+        "data_de_exclusao_do_simples":{
+            "valid_values": "1998-07-01",
+            "allow_null": true
+        },
+        "data_de_opcao_pelo_mei":{
+            "valid_values": "1998-07-01",
+            "allow_null": true
+        },
+        "data_de_exclusao_do_mei":{
+            "valid_values": "1998-07-01",
+            "allow_null": true
         }
     }
 }

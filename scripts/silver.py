@@ -1,7 +1,7 @@
 from json.decoder import JSONDecodeError
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import StringType
+from pyspark.sql.types import StringType, DateType
 from pyspark.sql import DataFrame
 from pathlib import Path
 from datetime import datetime
@@ -100,9 +100,15 @@ def validating_and_filtering_data(category_name: str, df: DataFrame):
         allow_null = val["allow_null"]
         
         if allow_null:
-            df = df.filter(F.col(column).isNull() | F.col(column).isin(valid_values))
+            if isinstance(df.schema[column].dataType, DateType):
+                df = df.filter(F.col(column).isNull() | (F.col(column) >= valid_values))
+            else:
+                df = df.filter(F.col(column).isNull() | F.col(column).isin(valid_values))
         else:
-            df = df.filter(F.col(column).isNotNull() & F.col(column).isin(valid_values))
+            if isinstance(df.schema[column].dataType, DateType):
+                df = df.filter(F.col(column).isNotNull() & (F.col(column) >= valid_values))
+            else:
+                df = df.filter(F.col(column).isNotNull() & F.col(column).isin(valid_values))
         
     return df    
 

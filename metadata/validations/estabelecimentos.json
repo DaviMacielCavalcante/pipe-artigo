@@ -1,6 +1,6 @@
 {
     "estabelecimentos": {
-        "identificador_matriz_filial": {
+        "identificador_matriz_ou_filial": {
            "valid_values": [1, 2],
             "allow_null": false
         },
@@ -9,7 +9,19 @@
             "allow_null": false
         },
         "uf": {
-            "valid_values": ["ex", "ac", "al", "am", "ap", "ba", "ce", "df", "es", "go", "ma", "mg", "ms", "mt", "pa", "pb", "pe", "pi", "pr", "rj", "rn", "ro", "rr", "rs", "sc", "se", "sp", "to"],
+            "valid_values": ["ac", "al", "am", "ap", "ba", "ce", "df", "es", "go", "ma", "mg", "ms", "mt", "pa", "pb", "pe", "pi", "pr", "rj", "rn", "ro", "rr", "rs", "sc", "se", "sp", "to"],
+            "allow_null": false
+        },
+        "data_situacao_cadastral": {
+            "valid_values": "1998-07-01",
+            "allow_null": true
+        },
+        "data_de_inicio_atividade": {
+            "valid_values": "1998-07-01",
+            "allow_null": true
+        },
+        "data_da_situacao_especial": {
+            "valid_values": "1998-07-01",
             "allow_null": true
         }
     }

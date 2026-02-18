@@ -7,6 +7,10 @@
         "faixa_etaria":{
             "valid_values": [0,1,2,3,4,5,6,7,8,9],
             "allow_null": true
+        },
+        "data_de_entrada_sociedade": {
+            "valid_values": "1998-07-01",
+            "allow_null": true
         }
     }
 }

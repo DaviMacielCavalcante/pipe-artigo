@@ -1,5 +1,5 @@
 {
-    "identificador_matriz_filial": "int",
+    "identificador_matriz_ou_filial": "int",
     "situacao_cadastral": "int",
     "data_situacao_cadastral": "date",
     "motivo_situacao_cadastral": "int",

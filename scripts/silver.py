@@ -17,7 +17,39 @@ def load_transformation_schema(category_name: str) -> dict | None:
         return None
     return schema
 
-def adjust_data_type(category_name: str, spark: SparkSession):
+def load_validation_schema(category_name: str) -> dict | None:
+    
+    path = f"metadata/validations/{category_name}.json"
+    
+    try:
+        with open(path, 'r') as f:
+            schema = json.load(f)
+    except (FileNotFoundError, JSONDecodeError) as e:
+        print(f"Erro: {e}")
+        return None
+    return schema
+
+def validating_and_filtering_data(category_name: str, df: DataFrame):
+    
+    validation_schema = load_validation_schema(category_name)
+    
+    if not validation_schema:
+        return df 
+    
+    validation_schema = validation_schema[category_name]
+    
+    for column, val in validation_schema.items():
+        valid_values = val["valid_values"]
+        allow_null = val["allow_null"]
+        
+        if allow_null:
+            df = df.filter(F.col(column).isNull() | F.col(column).isin(valid_values))
+        else:
+            df = df.filter(F.col(column).isNotNull() & F.col(column).isin(valid_values))
+        
+    return df    
+
+def adjust_data_type(spark: SparkSession, category_name: str):
     
     schema = load_transformation_schema(category_name)
     
@@ -65,6 +97,7 @@ if __name__ == "__main__":
     for category in categories:
         df = adjust_data_type(category, spark) 
         standardized_df = standardizing_strings(df)
-        persisting_locally(standardized_df, category)
+        validated_df = validating_and_filtering_data(standardized_df, category)
+        persisting_locally(validated_df, category)
 
     spark.stop()

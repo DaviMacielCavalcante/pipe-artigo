@@ -1,0 +1,8 @@
+{
+    "empresas":{
+        "porte_da_empresa": {
+            "valid_values": [0, 1, 3, 5],
+            "allow_null": true
+        }
+    }    
+}

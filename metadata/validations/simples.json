@@ -1,0 +1,12 @@
+{
+    "simples":{
+        "opcao_pelo_simples":{
+            "valid_values": ["s", "n"],
+            "allow_null": true
+        },
+        "opcao_pelo_mei":{
+            "valid_values": ["s", "n"],
+            "allow_null": true
+        }
+    }
+}

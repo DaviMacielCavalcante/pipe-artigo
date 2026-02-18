@@ -3,7 +3,64 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType
 from pyspark.sql import DataFrame
+from pathlib import Path
+from datetime import datetime
 import json
+import time
+
+def generate_silver_report(category_name: str, df: DataFrame) -> DataFrame:
+    """
+    Validate data and generate statistics report for Silver layer.
+
+    Applies validation rules, counts removed records, and saves
+    a JSON report to reports/silver/{category_name}_report.json.
+
+    Parameters
+    ----------
+    category_name : str
+        Category name (e.g., 'empresas', 'estabelecimentos').
+    df : DataFrame
+        DataFrame after type adjustment and string standardization.
+
+    Returns
+    -------
+    DataFrame
+        Validated DataFrame with invalid records removed.
+
+    Notes
+    -----
+    - Calls validating_and_filtering_data() internally.
+    - Reports are saved to reports/silver/ directory.
+    - Categories without validation rules will show zero removals.
+    """
+    start = time.time()
+    
+    rows_before = df.count()
+    
+    validated_df = validating_and_filtering_data(category_name, df)
+    
+    rows_after = validated_df.count()
+    
+    results = {
+        "category": category_name,
+        "timestamp": datetime.now().isoformat(),
+        "validation": {
+            "rows_before": rows_before,
+            "rows_after": rows_after,
+            "rows_removed": rows_before - rows_after
+        },
+        "performance": {}
+    }
+    
+    end = time.time()
+    
+    results["performance"]["execution_time_seconds"] = round(end - start, 2)
+    
+    Path("reports/silver").mkdir(exist_ok=True, parents=True)
+    with open(f"reports/silver/{category_name}_report.json", "w") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+    
+    return validated_df
 
 def load_transformation_schema(category_name: str) -> dict | None:
     
@@ -95,9 +152,9 @@ if __name__ == "__main__":
     categories = ["cnaes", "empresas", "estabelecimentos", "motivos", "municipios", "naturezas", "paises", "qualificacoes", "simples", "socios"]
     
     for category in categories:
-        df = adjust_data_type(category, spark) 
+        df = adjust_data_type(spark, category) 
         standardized_df = standardizing_strings(df)
-        validated_df = validating_and_filtering_data(standardized_df, category)
+        validated_df = generate_silver_report(category, standardized_df)
         persisting_locally(validated_df, category)
 
     spark.stop()

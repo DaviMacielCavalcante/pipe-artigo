@@ -9,8 +9,6 @@ Write-Host "Cassandra pronto!"
 
 docker exec -it cassandra cqlsh -f /opt/scripts/keyspaces.cql
 
-docker exec -it cassandra cqlsh -f /opt/scripts/silver_tables.cql
-
 docker exec -it spark-master bash -c "cd /opt/spark/work-dir && /opt/spark/bin/spark-submit --master spark://spark-master:7077 scripts/bronze.py"
 
 docker exec -it spark-master bash -c "cd /opt/spark/work-dir && /opt/spark/bin/spark-submit --master spark://spark-master:7077 scripts/silver.py"

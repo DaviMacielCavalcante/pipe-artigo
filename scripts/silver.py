@@ -119,6 +119,8 @@ def adjust_data_type(spark: SparkSession, category_name: str):
     df = spark.read.parquet(f"data/bronze/{category_name}")
 
     for k, v in schema.items():
+        if v == "decimal":
+            df = df.withColumn(k, F.regexp_replace(k, ",", "."))
         if v != "date":
             df = df.withColumn(k, F.col(k).cast((v)))
         else:

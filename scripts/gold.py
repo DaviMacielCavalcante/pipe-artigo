@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import StringType
+from pyspark.sql.window import Window
 from pyspark.sql import DataFrame
 
 def persisting_on_cassandra(df: DataFrame, category: str):
@@ -29,8 +29,11 @@ def capital_por_porte(spark: SparkSession):
         .parquet("data/silver/empresas") 
         
     df_capital_por_porte = df_empresas.groupBy("porte_da_empresa").agg(
-        F.avg("capital_social_da_empresa").alias("capital_social")
-    ).orderBy(F.desc("capital_social"))
+        F.avg("capital_social_da_empresa").alias("capital_medio")
+    ).orderBy(F.desc("capital_medio"))
+    
+    df_capital_por_porte = df_capital_por_porte.withColumnRenamed("porte_da_empresa", "porte")
+    df_capital_por_porte = df_capital_por_porte.filter(F.col("porte").isNotNull())
     
     return df_capital_por_porte
 
@@ -50,7 +53,7 @@ def socios_por_empresa(spark: SparkSession):
         F.count("cnpj_ou_cpf_do_socio").alias("quantidade_de_socios")
     )
     
-    df_socios_por_empresa = df_socios_por_empresa.join(df_empresas, on="cnpj_basico").orderBy(F.desc("quantidade_de_socios")).select("razao_social_ou_nome_empresarial", "quantidade_de_socios")
+    df_socios_por_empresa = df_socios_por_empresa.join(df_empresas, on="cnpj_basico").orderBy(F.desc("quantidade_de_socios")).select("cnpj_basico", "razao_social_ou_nome_empresarial", "quantidade_de_socios")
     
     return df_socios_por_empresa
 
@@ -70,8 +73,45 @@ def empresas_por_natureza(spark: SparkSession):
     
     df_empresas_por_natureza = df_empresas_por_natureza.join(df_naturezas, how="inner", on=F.col("natureza_juridica") == F.col("codigo")).orderBy(F.desc("quantidade_de_empresas")).select("descricao", "quantidade_de_empresas")
     
-    df_empresas_por_natureza.show(10)
+    return df_empresas_por_natureza
 
+def filiais_inaptas_por_empresa(spark: SparkSession):
+    
+    df_empresas = spark.read \
+        .parquet("data/silver/empresas")
+        
+    df_empresas = df_empresas.select("cnpj_basico", "razao_social_ou_nome_empresarial")
+    
+    df_estabelecimentos = spark.read \
+        .parquet("data/silver/estabelecimentos")
+        
+    df_estabelecimentos = df_estabelecimentos.select("cnpj_basico", "identificador_matriz_ou_filial", "situacao_cadastral")
+    
+    df_estabelecimentos = df_estabelecimentos.filter((F.col("identificador_matriz_ou_filial") == 2) & (F.col("situacao_cadastral") == 4))
+    
+    df_estabelecimentos = df_estabelecimentos.groupBy("cnpj_basico").agg(
+        F.count("situacao_cadastral").alias("quantidade")
+    )
+    
+    df_filiais_inaptas_por_empresa = df_empresas.join(df_estabelecimentos, on="cnpj_basico", how="inner").select("cnpj_basico", "razao_social_ou_nome_empresarial", "quantidade")
+    
+    return df_filiais_inaptas_por_empresa
+
+def ranking_empresas_filiais_inaptas(df: DataFrame):
+    
+    window = Window.orderBy(F.desc("quantidade"))
+    
+    df = df.withColumn("rank", F.row_number().over(window))
+    
+    df = df.withColumn("bucket", 
+        F.when(F.col("rank") <= 101, "top_100")
+        .otherwise("outros")
+    )
+    
+    df = df.select("bucket", "quantidade", "razao_social_ou_nome_empresarial", "cnpj_basico")
+    
+    return df
+    
 
 if __name__ == "__main__":
     
@@ -80,13 +120,29 @@ if __name__ == "__main__":
     .master("spark://spark-master:7077") \
     .config("spark.cassandra.connection.host", "cassandra") \
     .getOrCreate()        
+      
+    df_empresas_por_uf = empresas_por_uf(spark)
     
-    empresas_por_uf(spark)
+    persisting_on_cassandra(df_empresas_por_uf, "empresas_por_uf")
     
-    capital_por_porte(spark)
+    df_capital_por_porte = capital_por_porte(spark)
     
-    socios_por_empresa(spark)
+    persisting_on_cassandra(df_capital_por_porte, "capital_por_porte")
     
-    empresas_por_natureza(spark)
+    df_socios_por_empresa = socios_por_empresa(spark)
+    
+    persisting_on_cassandra(df_socios_por_empresa, "socios_por_empresa")
+    
+    df_empresas_por_natureza = empresas_por_natureza(spark)
+    
+    persisting_on_cassandra(df_empresas_por_natureza, "empresas_por_natureza") 
+
+    df_filiais_inaptas_por_empresa = filiais_inaptas_por_empresa(spark)
+    
+    persisting_on_cassandra(df_filiais_inaptas_por_empresa, "filiais_inaptas_por_empresa")
+    
+    df_rank_filiais_inaptas_por_empresa = ranking_empresas_filiais_inaptas(df_filiais_inaptas_por_empresa)
+    
+    persisting_on_cassandra(df_rank_filiais_inaptas_por_empresa, "rank_empresas_filiais_inaptas")
     
     spark.stop()

@@ -12,6 +12,19 @@ def persisting_on_cassandra(df: DataFrame, category: str):
         .mode("append") \
         .save()
         
+def persisting_on_mongodb(df: DataFrame, collection: str, pk_col: str = None):
+    
+    if pk_col:
+        df = df.withColumnRenamed(pk_col, "_id")
+    
+    df.write \
+        .format("mongodb") \
+        .option("connection.uri", "mongodb://mongodb:27017") \
+        .option("database", "cnpj_db") \
+        .option("collection", collection) \
+        .mode("overwrite") \
+        .save()
+        
 def empresas_por_uf(spark: SparkSession):
 
     df_estabelecimentos = spark.read \
@@ -121,28 +134,32 @@ if __name__ == "__main__":
     .config("spark.cassandra.connection.host", "cassandra") \
     .getOrCreate()        
       
-    df_empresas_por_uf = empresas_por_uf(spark)
-    
-    persisting_on_cassandra(df_empresas_por_uf, "empresas_por_uf")
-    
-    df_capital_por_porte = capital_por_porte(spark)
-    
-    persisting_on_cassandra(df_capital_por_porte, "capital_por_porte")
-    
-    df_socios_por_empresa = socios_por_empresa(spark)
-    
-    persisting_on_cassandra(df_socios_por_empresa, "socios_por_empresa")
-    
-    df_empresas_por_natureza = empresas_por_natureza(spark)
-    
-    persisting_on_cassandra(df_empresas_por_natureza, "empresas_por_natureza") 
 
+    df_empresas_por_uf = empresas_por_uf(spark)
+    persisting_on_cassandra(df_empresas_por_uf, "empresas_por_uf")
+    persisting_on_mongodb(df_empresas_por_uf, "empresas_por_uf", "uf")
+    
+
+    df_capital_por_porte = capital_por_porte(spark)
+    persisting_on_cassandra(df_capital_por_porte, "capital_por_porte")
+    persisting_on_mongodb(df_capital_por_porte, "capital_por_porte", "porte")
+    
+
+    df_socios_por_empresa = socios_por_empresa(spark)
+    persisting_on_cassandra(df_socios_por_empresa, "socios_por_empresa")
+    persisting_on_mongodb(df_socios_por_empresa, "socios_por_empresa", "cnpj_basico")
+    
+
+    df_empresas_por_natureza = empresas_por_natureza(spark)
+    persisting_on_cassandra(df_empresas_por_natureza, "empresas_por_natureza")
+    persisting_on_mongodb(df_empresas_por_natureza, "empresas_por_natureza", "descricao")
+    
     df_filiais_inaptas_por_empresa = filiais_inaptas_por_empresa(spark)
-    
     persisting_on_cassandra(df_filiais_inaptas_por_empresa, "filiais_inaptas_por_empresa")
+    persisting_on_mongodb(df_filiais_inaptas_por_empresa, "filiais_inaptas_por_empresa", "cnpj_basico")
     
-    df_rank_filiais_inaptas_por_empresa = ranking_empresas_filiais_inaptas(df_filiais_inaptas_por_empresa)
-    
-    persisting_on_cassandra(df_rank_filiais_inaptas_por_empresa, "rank_empresas_filiais_inaptas")
+    df_ranking = ranking_empresas_filiais_inaptas(df_filiais_inaptas_por_empresa)
+    persisting_on_cassandra(df_ranking, "rank_empresas_filiais_inaptas")
+    persisting_on_mongodb(df_ranking, "rank_empresas_filiais_inaptas")  # Sem pk_column!
     
     spark.stop()

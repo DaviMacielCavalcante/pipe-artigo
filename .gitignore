@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# ycsb
+ycsb-0.17.0*
+
 # reports
 
 reports/

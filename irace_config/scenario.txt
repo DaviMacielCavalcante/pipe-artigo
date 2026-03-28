@@ -1,0 +1,6 @@
+targetRunner = "./targetRunner.bat"
+parameterFile = "./parameters.txt"
+tranInstancesFile = "./instances.txt"
+maxExperiments = 1000
+parallel = 1
+seed = 69

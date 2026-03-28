@@ -1,0 +1,8 @@
+batch_size "--batch_size " o (32, 64, 128, 256, 512)
+concurrent_writes "--concurrent_writes " o (16, 32, 64, 128)
+concurrent_reads "--concurrent_reads " o (16, 32, 64, 128)
+write_timeout "--write_timeout " o (5000, 10000, 20000, 30000)
+read_timeout "--read_timeout " o (5000, 10000, 20000, 30000)
+consistency_level "--consistency_level " o (low, medium, high)
+compression "--compression " c (lz4, snappy, none)
+cache_size_mb "--cache_size_mb " o (512, 1024, 2048, 4096)

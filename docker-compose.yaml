@@ -12,6 +12,7 @@ services:
       - "9042:9042"
       - "7199:7199"
     volumes:
+      - ./config/cassandra.yaml:/etc/cassandra/cassandra.yaml
       - cassandra-data:/var/lib/cassandra
       - ./database/cassandra:/opt/scripts:ro
     networks:
@@ -26,12 +27,12 @@ services:
   mongodb:
     image: mongodb/mongodb-community-server:7.0-ubuntu2204
     container_name: mongodb
-    environment:
-      - MONGO_INITDB_DATABASE=cnpj_db
+    command: mongod --config /etc/mongod.conf
     ports:
       - "27017:27017"
     volumes:
       - mongodb-data:/data/db
+      - ./config/mongod.conf:/etc/mongod.conf
     networks:
       - test-network
     healthcheck:

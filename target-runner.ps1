@@ -105,14 +105,35 @@ $cassandraLoad = cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load cassandra-cql -s -P .\y
 
 $cassandraLoad > cassandra_load.txt
 
-$loadTime = Select-String -Path "cassandra_load.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+$cassandraLoadTime = Select-String -Path "cassandra_load.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
 
 $cassandraRun = cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run cassandra-cql -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=1000 -p cassandra.readconsistencylevel=$cassandraConsistency -p cassandra.writeconsistencylevel=$cassandraConsistency"
 
 $cassandraRun > cassandra_run.txt
 
-$runTime = Select-String -Path "cassandra_run.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+$cassandraRunTime = Select-String -Path "cassandra_run.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
 
-$totalTime = [int]$loadTime + [int]$runTime
+$cassandraTotalTime = [int]$cassandraLoadTime + [int]$cassandraRunTime
 
-Write-Output $totalTime
+# Fazendo isso para evitar que as operações estourem o timeout
+$mongoTimeout = [math]::Max([int]$params['write_timeout'], [int]$params['read_timeout'])
+
+docker exec mongodb mongosh --eval "db.getSiblingDB('ycsb').dropDatabase()"
+
+$mongoLoad = cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p recordcount=1000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout -p mongodb.writeConcern=$mongoConsistency -p mongodb.url=mongodb://localhost:27017/ycsb"
+
+$mongoLoad > mongo_load.txt
+
+$mongoLoadTime = Select-String -Path "mongo_load.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$mongoRun = cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=1000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout -p mongodb.writeConcern=$mongoConsistency -p mongodb.url=mongodb://localhost:27017/ycsb"
+
+$mongoRun > mongo_run.txt
+
+$mongoRunTime = Select-String -Path "mongo_run.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$mongoTotalTime = [int]$mongoLoadTime + [int]$mongoRunTime
+
+$totalTimeDbs = $cassandraTotalTime + $mongoTotalTime
+
+Write-Output $totalTimeDbs

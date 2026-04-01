@@ -7,6 +7,9 @@ __pycache__/
 cassandra*.txt
 mongo*.txt
 
+#csv
+*.csv
+
 config/
 
 # ycsb

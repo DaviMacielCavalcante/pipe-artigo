@@ -113,6 +113,18 @@ $cassandraRun > cassandra_run.txt
 
 $cassandraRunTime = Select-String -Path "cassandra_run.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
 
+$cassandraRunOverallThroughput = Select-String -Path "cassandra_run.txt" -Pattern "\[OVERALL\], Throughput\(ops/sec\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$cassandraRunReadAverageLatency = Select-String -Path "cassandra_run.txt" -Pattern "\[READ\], AverageLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$cassandraRunRead95thPercentileLatency = Select-String -Path "cassandra_run.txt" -Pattern "\[READ\], 95thPercentileLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$cassandraRunRead99thPercentileLatency = Select-String -Path "cassandra_run.txt" -Pattern "\[READ\], 99thPercentileLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$cassandraRunUpdateAverageLatency = Select-String -Path "cassandra_run.txt" -Pattern "\[UPDATE\], AverageLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$cassandraRunUpdate99thPercentileLatency = Select-String -Path "cassandra_run.txt" -Pattern "\[UPDATE\], 99thPercentileLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
 $cassandraTotalTime = [int]$cassandraLoadTime + [int]$cassandraRunTime
 
 # Fazendo isso para evitar que as operações estourem o timeout
@@ -132,8 +144,42 @@ $mongoRun > mongo_run.txt
 
 $mongoRunTime = Select-String -Path "mongo_run.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
 
+$mongoRunOverallThroughput = Select-String -Path "mongo_run.txt" -Pattern "\[OVERALL\], Throughput\(ops/sec\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$mongoRunReadAverageLatency = Select-String -Path "mongo_run.txt" -Pattern "\[READ\], AverageLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$mongoRunRead95thPercentileLatency = Select-String -Path "mongo_run.txt" -Pattern "\[READ\], 95thPercentileLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$mongoRunRead99thPercentileLatency = Select-String -Path "mongo_run.txt" -Pattern "\[READ\], 99thPercentileLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$mongoRunUpdateAverageLatency = Select-String -Path "mongo_run.txt" -Pattern "\[UPDATE\], AverageLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
+$mongoRunUpdate99thPercentileLatency = Select-String -Path "mongo_run.txt" -Pattern "\[UPDATE\], 99thPercentileLatency\(us\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
+
 $mongoTotalTime = [int]$mongoLoadTime + [int]$mongoRunTime
 
 $totalTimeDbs = $cassandraTotalTime + $mongoTotalTime
 
 Write-Output $totalTimeDbs
+
+"metric,cassandra_value,mongodb_value,unit" | Set-Content "experiment_${configId}_${instanceName}.csv"
+
+"time_load,$cassandraLoadTime,$mongoLoadTime,ms" | Add-Content "experiment_${configId}_${instanceName}.csv"
+
+"time_run,$cassandraRunTime,$mongoRunTime,ms" | Add-Content "experiment_${configId}_${instanceName}.csv"
+
+"total_time,$cassandraTotalTime,$mongoTotalTime,ms" | Add-Content "experiment_${configId}_${instanceName}.csv"
+
+"run_overall_throughput,$cassandraRunOverallThroughput,$mongoRunOverallThroughput,ops_sec" | Add-Content "experiment_${configId}_${instanceName}.csv"
+
+"run_read_average_latency,$cassandraRunReadAverageLatency,$mongoRunReadAverageLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
+
+"run_read_p95_latency,$cassandraRunRead95thPercentileLatency,$mongoRunRead95thPercentileLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
+
+"run_read_p99_latency,$cassandraRunRead99thPercentileLatency,$mongoRunRead99thPercentileLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
+
+"run_update_average_latency,$cassandraRunUpdateAverageLatency,$mongoRunUpdateAverageLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
+
+"run_update_p99_latency,$cassandraRunUpdate99thPercentileLatency,$mongoRunUpdate99thPercentileLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
+
+type "experiment_1_run_1.csv"

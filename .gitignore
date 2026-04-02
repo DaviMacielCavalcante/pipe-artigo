@@ -6,6 +6,7 @@ __pycache__/
 # txt
 cassandra*.txt
 mongo*.txt
+*.txt
 
 #csv
 *.csv

@@ -45,8 +45,8 @@ $mongoCompression = $compressionMap[$params['compression']]
 $mongoConfig = $mongoConfig -replace "blockCompressor: \w+", "blockCompressor: $mongoCompression"
 $mongoConfig | Set-Content "./config/mongod.conf"
 
-docker restart cassandra
-docker restart mongodb
+docker restart cassandra 2>&1 | Out-Null
+docker restart mongodb 2>&1 | Out-Null
 
 do {
     Start-Sleep -Seconds 5
@@ -58,9 +58,11 @@ do {
     $status = docker inspect --format='{{.State.Health.Status}}' mongodb
 } while ($status -ne "healthy")
 
-docker exec cassandra cqlsh -e "DROP KEYSPACE IF EXISTS ycsb;"
-docker exec cassandra cqlsh -e "CREATE KEYSPACE ycsb WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
-docker exec cassandra cqlsh -e "CREATE TABLE ycsb.usertable (y_id TEXT PRIMARY KEY, field0 TEXT, field1 TEXT, field2 TEXT, field3 TEXT, field4 TEXT, field5 TEXT, field6 TEXT, field7 TEXT, field8 TEXT, field9 TEXT);"
+Start-Sleep -Seconds 10
+
+docker exec cassandra cqlsh -e "DROP KEYSPACE IF EXISTS ycsb;" 2>&1 | Out-Null
+docker exec cassandra cqlsh -e "CREATE KEYSPACE ycsb WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};" 2>&1 | Out-Null
+docker exec cassandra cqlsh -e "CREATE TABLE ycsb.usertable (y_id TEXT PRIMARY KEY, field0 TEXT, field1 TEXT, field2 TEXT, field3 TEXT, field4 TEXT, field5 TEXT, field6 TEXT, field7 TEXT, field8 TEXT, field9 TEXT);" 2>&1 | Out-Null
 
 $cassandraCompressionMap = @{
     "lz4"    = "LZ4Compressor"
@@ -70,9 +72,9 @@ $cassandraCompressionMap = @{
 $cassandraCompression = $cassandraCompressionMap[$params['compression']]
 
 if ($cassandraCompression -eq "") {
-    docker exec cassandra cqlsh -e "ALTER TABLE ycsb.usertable WITH compression = {'enabled': 'false'};"
+    docker exec cassandra cqlsh -e "ALTER TABLE ycsb.usertable WITH compression = {'enabled': 'false'};" 2>&1 | Out-Null
 } else {
-    docker exec cassandra cqlsh -e "ALTER TABLE ycsb.usertable WITH compression = {'class': '$cassandraCompression'};"
+    docker exec cassandra cqlsh -e "ALTER TABLE ycsb.usertable WITH compression = {'class': '$cassandraCompression'};" 2>&1 | Out-Null
 }
 
 $cassandraConsistencyMap = @{
@@ -102,14 +104,12 @@ $cassandraJob = Start-Job -ScriptBlock {
     }
 } -ArgumentList "cassandra", "$PWD\stats_cassandra.csv"
 
-$cassandraLoad = cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load cassandra-cql -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p recordcount=100000 -p cassandra.readconsistencylevel=$cassandraConsistency -p cassandra.writeconsistencylevel=$cassandraConsistency -threads 20"
-$cassandraLoad > cassandra_load.txt
+cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load cassandra-cql -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p recordcount=100000 -p cassandra.readconsistencylevel=$cassandraConsistency -p cassandra.writeconsistencylevel=$cassandraConsistency -threads 20 2>&1" > cassandra_load.txt
 
-$cassandraRun = cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run cassandra-cql -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=100000 -p cassandra.readconsistencylevel=$cassandraConsistency -p cassandra.writeconsistencylevel=$cassandraConsistency -threads 20"
-$cassandraRun > cassandra_run.txt
+cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run cassandra-cql -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=100000 -p cassandra.readconsistencylevel=$cassandraConsistency -p cassandra.writeconsistencylevel=$cassandraConsistency -threads 20 2>&1" > cassandra_run.txt
 
-Stop-Job $cassandraJob
-Remove-Job $cassandraJob
+Stop-Job $cassandraJob 2>&1 | Out-Null
+Remove-Job $cassandraJob 2>&1 | Out-Null
 
 $cassandraLoadTime = Select-String -Path "cassandra_load.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
 $cassandraRunTime = Select-String -Path "cassandra_run.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
@@ -122,7 +122,7 @@ $cassandraRunUpdate99thPercentileLatency = Select-String -Path "cassandra_run.tx
 
 $cassandraTotalTime = [int]$cassandraLoadTime + [int]$cassandraRunTime
 
-docker exec mongodb mongosh --eval "db.getSiblingDB('ycsb').dropDatabase()"
+docker exec mongodb mongosh --eval "db.getSiblingDB('ycsb').dropDatabase()" 2>&1 | Out-Null
 
 "" | Set-Content "$PWD\stats_mongo.csv"
 
@@ -135,14 +135,12 @@ $mongoJob = Start-Job -ScriptBlock {
     }
 } -ArgumentList "mongodb", "$PWD\stats_mongo.csv"
 
-$mongoLoad = cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p recordcount=100000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout -p mongodb.writeConcern=$mongoConsistency -p mongodb.url=mongodb://localhost:27017/ycsb -threads 20"
-$mongoLoad > mongo_load.txt
+cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p recordcount=100000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout -p mongodb.writeConcern=$mongoConsistency -p mongodb.url=mongodb://localhost:27017/ycsb -threads 20 2>&1" > mongo_load.txt
 
-$mongoRun = cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=100000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout -p mongodb.writeConcern=$mongoConsistency -p mongodb.url=mongodb://localhost:27017/ycsb -threads 20"
-$mongoRun > mongo_run.txt
+cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=100000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout -p mongodb.writeConcern=$mongoConsistency -p mongodb.url=mongodb://localhost:27017/ycsb -threads 20 2>&1" > mongo_run.txt
 
-Stop-Job $mongoJob
-Remove-Job $mongoJob
+Stop-Job $mongoJob 2>&1 | Out-Null
+Remove-Job $mongoJob 2>&1 | Out-Null
 
 $mongoLoadTime = Select-String -Path "mongo_load.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }
 $mongoRunTime = Select-String -Path "mongo_run.txt" -Pattern "\[OVERALL\], RunTime\(ms\)" | ForEach-Object { ($_ -split ",")[2].Trim() }

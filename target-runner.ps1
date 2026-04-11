@@ -1,3 +1,24 @@
+if (-not (Test-Path "campaign_info.txt")) {
+    [Console]::Error.WriteLine("ERRO: campaign_info.txt nao encontrado na raiz do projeto.")
+    exit 1
+}
+
+$campaignInfo = @{}
+Get-Content "campaign_info.txt" | ForEach-Object {
+    if ($_ -match "=") {
+        $key, $value = $_ -split "=", 2
+        $campaignInfo[$key.Trim()] = $value.Trim()
+    }
+}
+
+if (-not $campaignInfo.ContainsKey("name") -or [string]::IsNullOrWhiteSpace($campaignInfo["name"])) {
+    [Console]::Error.WriteLine("ERRO: chave 'name' nao encontrada ou vazia em campaign_info.txt.")
+    exit 1
+}
+
+$campaignName = $campaignInfo["name"]
+$csvPath = "experiments_$campaignName.csv"
+
 $configId = $args[0]
 $instanceId = $args[1]
 $seed = $args[2]
@@ -23,10 +44,10 @@ function ConvertToMB($value) {
 $cassandraYaml = Get-Content "./config/cassandra.yaml" -Raw
 $cassandraYaml = $cassandraYaml -replace "concurrent_writes: \d+", "concurrent_writes: $($params['concurrent_writes'])"
 $cassandraYaml = $cassandraYaml -replace "concurrent_reads: \d+", "concurrent_reads: $($params['concurrent_reads'])"
-$cassandraYaml = $cassandraYaml -replace "write_request_timeout_in_ms: \d+", "write_request_timeout_in_ms: $($params['write_timeout'])"
-$cassandraYaml = $cassandraYaml -replace "read_request_timeout_in_ms: \d+", "read_request_timeout_in_ms: $($params['read_timeout'])"
-$cassandraYaml = $cassandraYaml -replace "row_cache_size_in_mb: \d+", "row_cache_size_in_mb: $($params['cache_size_mb'])"
-$cassandraYaml = $cassandraYaml -replace "batch_size_warn_threshold_in_kb: \d+", "batch_size_warn_threshold_in_kb: $($params['batch_size'])"
+$cassandraYaml = $cassandraYaml -replace "write_request_timeout: \d+ms", "write_request_timeout: $($params['write_timeout'])ms"
+$cassandraYaml = $cassandraYaml -replace "read_request_timeout: \d+ms", "read_request_timeout: $($params['read_timeout'])ms"
+$cassandraYaml = $cassandraYaml -replace "row_cache_size: \d+MiB", "row_cache_size: $($params['cache_size_mb'])MiB"
+$cassandraYaml = $cassandraYaml -replace "batch_size_warn_threshold: \d+KiB", "batch_size_warn_threshold: $($params['batch_size'])KiB"
 $cassandraYaml | Set-Content "./config/cassandra.yaml"
 
 $mongoConfig = Get-Content "./config/mongod.conf" -Raw
@@ -77,20 +98,6 @@ if ($cassandraCompression -eq "") {
     docker exec cassandra cqlsh -e "ALTER TABLE ycsb.usertable WITH compression = {'class': '$cassandraCompression'};" 2>&1 | Out-Null
 }
 
-$cassandraConsistencyMap = @{
-    "low"    = "ONE"
-    "medium" = "LOCAL_QUORUM"
-    "high"   = "ALL"
-}
-$cassandraConsistency = $cassandraConsistencyMap[$params['consistency_level']]
-
-$mongoConsistencyMap = @{
-    "low"    = "acknowledged"
-    "medium" = "majority"
-    "high"   = "all"
-}
-$mongoConsistency = $mongoConsistencyMap[$params['consistency_level']]
-
 $mongoTimeout = [math]::Max([int]$params['write_timeout'], [int]$params['read_timeout'])
 
 "" | Set-Content "$PWD\stats_cassandra.csv"
@@ -104,9 +111,9 @@ $cassandraJob = Start-Job -ScriptBlock {
     }
 } -ArgumentList "cassandra", "$PWD\stats_cassandra.csv"
 
-cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load cassandra-cql -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p recordcount=100000 -p cassandra.readconsistencylevel=$cassandraConsistency -p cassandra.writeconsistencylevel=$cassandraConsistency -threads 20 2>&1" > cassandra_load.txt
+cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load cassandra-cql -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p recordcount=100000 -threads 20 2>&1" > cassandra_load.txt
 
-cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run cassandra-cql -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=100000 -p cassandra.readconsistencylevel=$cassandraConsistency -p cassandra.writeconsistencylevel=$cassandraConsistency -threads 20 2>&1" > cassandra_run.txt
+cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run cassandra-cql -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=100000 -threads 20 2>&1" > cassandra_run.txt
 
 Stop-Job $cassandraJob 2>&1 | Out-Null
 Remove-Job $cassandraJob 2>&1 | Out-Null
@@ -135,9 +142,9 @@ $mongoJob = Start-Job -ScriptBlock {
     }
 } -ArgumentList "mongodb", "$PWD\stats_mongo.csv"
 
-cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p recordcount=100000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout -p mongodb.writeConcern=$mongoConsistency -p mongodb.url=mongodb://localhost:27017/ycsb -threads 20 2>&1" > mongo_load.txt
+cmd /c ".\ycsb-0.17.0\bin\ycsb.bat load mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p recordcount=100000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout  -p mongodb.url=mongodb://localhost:27017/ycsb -threads 20 2>&1" > mongo_load.txt
 
-cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=100000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout -p mongodb.writeConcern=$mongoConsistency -p mongodb.url=mongodb://localhost:27017/ycsb -threads 20 2>&1" > mongo_run.txt
+cmd /c ".\ycsb-0.17.0\bin\ycsb.bat run mongodb -s -P .\ycsb-0.17.0\workloads\workloada -p hosts=localhost -p operationcount=100000 -p mongodb.batchsize=$($params['batch_size']) -p mongodb.socketTimeout=$mongoTimeout -p mongodb.url=mongodb://localhost:27017/ycsb -threads 20 2>&1" > mongo_run.txt
 
 Stop-Job $mongoJob 2>&1 | Out-Null
 Remove-Job $mongoJob 2>&1 | Out-Null
@@ -213,21 +220,14 @@ $ioWriteMongo = ConvertToMB $ioMongoFields[1].Trim()
 
 $totalTimeDbs = $cassandraTotalTime + $mongoTotalTime
 
-"metric,cassandra_value,mongodb_value,unit" | Set-Content "experiment_${configId}_${instanceName}.csv"
-"time_load,$cassandraLoadTime,$mongoLoadTime,ms" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"time_run,$cassandraRunTime,$mongoRunTime,ms" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"total_time,$cassandraTotalTime,$mongoTotalTime,ms" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"run_overall_throughput,$cassandraRunOverallThroughput,$mongoRunOverallThroughput,ops_sec" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"run_read_average_latency,$cassandraRunReadAverageLatency,$mongoRunReadAverageLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"run_read_p95_latency,$cassandraRunRead95thPercentileLatency,$mongoRunRead95thPercentileLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"run_read_p99_latency,$cassandraRunRead99thPercentileLatency,$mongoRunRead99thPercentileLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"run_update_average_latency,$cassandraRunUpdateAverageLatency,$mongoRunUpdateAverageLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"run_update_p99_latency,$cassandraRunUpdate99thPercentileLatency,$mongoRunUpdate99thPercentileLatency,us" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"cpu_avg,$cassandraCpuAvg,$mongoCpuAvg,percent" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"cpu_peak,$cassandraCpuPeak,$mongoCpuPeak,percent" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"ram_avg,$cassandraRamAvg,$mongoRamAvg,megabytes" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"ram_peak,$cassandraRamPeak,$mongoRamPeak,megabytes" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"io_read,$ioReadCassandra,$ioReadMongo,megabytes" | Add-Content "experiment_${configId}_${instanceName}.csv"
-"io_write,$ioWriteCassandra,$ioWriteMongo,megabytes" | Add-Content "experiment_${configId}_${instanceName}.csv"
+if (-not (Test-Path $csvPath)) {
+    "config_id,instance_name,banco,batch_size,concurrent_writes,concurrent_reads,write_timeout,read_timeout,compression,cache_size_mb,time_load,time_run,total_time,run_overall_throughput,run_read_average_latency,run_read_p95_latency,run_read_p99_latency,run_update_average_latency,run_update_p99_latency,cpu_avg,cpu_peak,ram_avg,ram_peak,io_read,io_write" | Set-Content $csvPath
+}
+
+$paramCols = "$($params['batch_size']),$($params['concurrent_writes']),$($params['concurrent_reads']),$($params['write_timeout']),$($params['read_timeout']),$($params['compression']),$($params['cache_size_mb'])"
+
+"$configId,$instanceName,cassandra,$paramCols,$cassandraLoadTime,$cassandraRunTime,$cassandraTotalTime,$cassandraRunOverallThroughput,$cassandraRunReadAverageLatency,$cassandraRunRead95thPercentileLatency,$cassandraRunRead99thPercentileLatency,$cassandraRunUpdateAverageLatency,$cassandraRunUpdate99thPercentileLatency,$cassandraCpuAvg,$cassandraCpuPeak,$cassandraRamAvg,$cassandraRamPeak,$ioReadCassandra,$ioWriteCassandra" | Add-Content $csvPath
+
+"$configId,$instanceName,mongodb,$paramCols,$mongoLoadTime,$mongoRunTime,$mongoTotalTime,$mongoRunOverallThroughput,$mongoRunReadAverageLatency,$mongoRunRead95thPercentileLatency,$mongoRunRead99thPercentileLatency,$mongoRunUpdateAverageLatency,$mongoRunUpdate99thPercentileLatency,$mongoCpuAvg,$mongoCpuPeak,$mongoRamAvg,$mongoRamPeak,$ioReadMongo,$ioWriteMongo" | Add-Content $csvPath
 
 Write-Output $totalTimeDbs
